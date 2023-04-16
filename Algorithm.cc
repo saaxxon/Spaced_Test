@@ -1,129 +1,77 @@
-#include <iostream>
+#include "Algorithm.h"
 #include <fstream>
+#include <iostream>
 #include <string>
 #include <vector>
-#include <algorithm>
-#include <random>
 
-using namespace std;
-
-struct Flashcard {
-    string question;
-    string answer;
-    int difficulty;
-    int interval;
-};
-
-vector<Flashcard> readFlashcards(string filename) {
-    vector<Flashcard> flashcards;
-    ifstream file(filename);
-    if (file.is_open()) {
-        string line;
-        while (getline(file, line)) {
-            Flashcard card;
-            card.question = line;
-            getline(file, card.answer);
-            file >> card.difficulty;
-            file >> card.interval;
-            flashcards.push_back(card);
-            file.ignore(); // ignore the blank line
-        }
-        file.close();
-    }
-    return flashcards;
-}
-
-void writeFlashcards(string filename, Flashcard* flashcards, int numCards) {
-    ofstream file(filename);
-    if (file.is_open()) {
-        for (int i = 0; i < numCards; i++) {
-            file << flashcards[i].question << endl;
-            file << flashcards[i].answer << endl;
-            file << flashcards[i].difficulty << endl;
-            file << flashcards[i].interval << endl;
-            if (i != numCards - 1) {
-                file << endl;
-            }
-        }
-        file.close();
-    }
-}
-
-int calculateInterval(int difficulty, int interval, int responseTime, bool answeredCorrectly) {
-    double easinessFactor = 0.1 - (difficulty - 1) * (0.08 + (difficulty - 1) * 0.02);
-    if (answeredCorrectly) {
-        interval = 1;
-    } else if (difficulty > 1) {
-        interval *= easinessFactor;
-    }
-    interval = round(interval);
-    return interval;
-}
-
-int main() {
-    string filename = "flashcards.txt";
-    vector<Flashcard> flashcards = readFlashcards(filename);
-    int numCards = flashcards.size();
-    Flashcard* flashcardPtr = &flashcards[0];
-    random_device rd;
-    mt19937 g(rd());
-    shuffle(flashcards.begin(), flashcards.end(), g);
-    int currentCard = 0;
-    int numCorrect = 0;
-    int numIncorrect = 0;
-    int totalTime = 0;
-    while (true) {
-        Flashcard& card = flashcardPtr[currentCard];
-        cout << card
-                cout << "Question: " << card.question << endl;
-    string userInput;
-    cout << "Enter your answer: ";
-    getline(cin, userInput);
-    if (userInput == card.answer) {
-        cout << "Correct!" << endl;
-        numCorrect++;
-        int responseTime;
-        cout << "Enter your response time (in seconds): ";
-        cin >> responseTime;
-        totalTime += responseTime;
-        card.interval = calculateInterval(card.difficulty, card.interval, responseTime, true);
-        currentCard++;
-        if (currentCard == numCards) {
-            cout << "You have reviewed all flashcards!" << endl;
-            break;
-        }
-        char continueReviewing;
-        cout << "Do you want to continue reviewing? (y/n): ";
-        cin >> continueReviewing;
-        if (continueReviewing == 'n') {
-            break;
+double calculateInterval(double difficulty, double currentInterval, int responseTime, bool correct) {
+    double nextInterval = 0;
+    if (responseTime > 0 && correct) {
+        if (currentInterval == 0) {
+            nextInterval = 1;
+        } else if (currentInterval == 1) {
+            nextInterval = 6;
+        } else {
+            nextInterval = currentInterval * difficulty;
         }
     } else {
-        cout << "Incorrect. The correct answer is: " << card.answer << endl;
-        numIncorrect++;
-        card.interval = calculateInterval(card.difficulty, card.interval, 0, false);
-        currentCard++;
-        if (currentCard == numCards) {
-            cout << "You have reviewed all flashcards!" << endl;
-            break;
+        nextInterval = 0;
+    }
+    return nextInterval;
+}
+
+Flashcard* readFlashcards(const std::string& filename) {
+    std::fstream file(filename);
+    if (!file.is_open()) {
+        std::cout << "Error: Could not open file " << filename << std::endl;
+        return nullptr;
+    }
+    if (file.peek() == std::ifstream::traits_type::eof()) {
+        std::cout << "Error: File " << filename << " is empty" << std::endl;
+        return nullptr;
+    }
+    std::vector<Flashcard> flashcards;
+    std::string line;
+    while (std::getline(file, line)) {
+        std::string::size_type sep = line.find(",");
+        if (sep == std::string::npos) {
+            std::cout << "Error: Invalid line in file " << filename << std::endl;
+            return nullptr;
         }
-        char continueReviewing;
-        cout << "Do you want to continue reviewing? (y/n): ";
-        cin >> continueReviewing;
-        if (continueReviewing == 'n') {
-            break;
-        }
+        std::string front = line.substr(0, sep);
+        std::string back = line.substr(sep + 1);
+        Flashcard flashcard(front, back);
+        flashcards.push_back(flashcard);
+    }
+    Flashcard* flashcardPtr = new Flashcard[flashcards.size()];
+    for (int i = 0; i < flashcards.size(); i++) {
+        flashcardPtr[i] = flashcards[i];
+    }
+    return flashcardPtr;
+}
+
+void writeFlashcards(const std::string& filename, const Flashcard* flashcards, int numFlashcards) {
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        std::cout << "Error: Could not open file " << filename << std::endl;
+        return;
+    }
+    for (int i = 0; i < numFlashcards; i++) {
+        file << flashcards[i].getFront() << "," << flashcards[i].getBack() << std::endl;
     }
 }
-for (int i = 0; i < numCards; i++) {
-    Flashcard& card = flashcardPtr[i];
-    writeFlashcards(filename, flashcardPtr, numCards);
-}
-double averageTime = totalTime / numCards;
-cout << "Number of flashcards reviewed: " << numCards << endl;
-cout << "Number of correct responses: " << numCorrect << endl;
-cout << "Number of incorrect responses: " << numIncorrect << endl;
-cout << "Total time spent reviewing (in seconds): " << totalTime << endl;
-cout << "Average response time (in seconds): " << averageTime << endl;
-return 0;
+
+int main(int argc, char* argv[]) {
+    if (argc != 2) {
+        std::cout << "Usage: " << argv[0] << " <filename>" << std::endl;
+        return 1;
+    }
+    std::string filename = argv[1];
+    Flashcard* flashcardPtr = readFlashcards(filename);
+    if (flashcardPtr == nullptr) {
+        return 1;
+    }
+    // Do something with flashcards...
+    delete[] flashcardPtr;
+    return 0;
 }
