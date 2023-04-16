@@ -126,3 +126,13 @@ void UserInterface::listItems() {
 // Method to enter review mode
 void UserInterface::reviewMode() {
     cout << "Entering review mode..." <<
+
+        
+void MainWindow::Integrate() {
+    // Your integration code here
+    // For example:
+    double a = 0.0;
+    double b = 1.0;
+    double result = integrate(a, b, 1000000, my_func);
+    std::cout << "The integral of my_func from " << a << " to " << b << " is " << result << std::endl;
+}
